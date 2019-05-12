@@ -1,6 +1,7 @@
+import math
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from  multiprocessing import Process
+from multiprocessing import Process
 
 import os
 import requests
@@ -17,8 +18,33 @@ from threading import Thread
 #import time
 
 
-#_________________________________________________
+# _________________________________________________
+class Course:
+    def __init__(self, course_name):
+        self.course_name = course_name
+        self.prof_list = []
+        self.avg_gpa = 0
+        self.samp_num = 0
+        self.gpa_rank = 0
+        self.samp_rank = 0
+        self.comb_rank = 0
 
+    def get_course_name(self):
+        return self.course_name
+
+    def add_section(self, section):
+        self.prof_list.append(section)
+
+    def __eq__(self, other):
+        if isinstance(other, Course):
+            return self.course_name == other.course_name
+        return False
+
+
+class Arnav:
+    def __init__(self, course_name, val):
+        self.course_name = course_name
+        self.val = val
 
 
 # global vars
@@ -73,7 +99,7 @@ def add_gpa_field(gen_ed, course_in, driver):
     samp_num_st = gpa_text.find('between')+8
     samp_num_end = gpa_text.find(' ', samp_num_st)
     samp_num = int(gpa_text[samp_num_st:samp_num_end].replace(',', ''))
-    
+
     # adds the sample number to the course obj
     # print(gen_ed,":",index_of_course)
     all_gens_dict[gen_ed][index_of_course].samp_num = samp_num
@@ -85,42 +111,35 @@ def find_course(gen_ed, course_in):
     except:
         return -1
 
+
 def remove_empty(gen_ed):
     for course in all_gens_dict[gen_ed][:]:
         if(course.avg_gpa == 0):
-            print("removing")
             all_gens_dict[gen_ed].remove(course)
-class Course:
-    def __init__(self, course_name):
-        self.course_name = course_name
-        self.prof_list = []
-        self.avg_gpa = 0
-        self.samp_num = 0
-        self.gpa_rank = 0
-        self.samp_rank = 0
-        self.comb_rank = 0
-
-    def get_course_name(self):
-        return self.course_name
-
-    def add_section(self, section):
-        self.prof_list.append(section)
-
-    def __eq__(self, other):
-        if isinstance(other, Course):
-            return self.course_name == other.course_name
-        return False
 
 
 def get_best_gpa(gen_ed):
+    output = f'{gen_ed} Best of GPA:\n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
     top_gpa = merge_sort(all_gens_dict[gen_ed], 'gpa')
     index = 1
     for course in top_gpa:
-        print(index,')',course.course_name, ":", course.avg_gpa)
-        index +=1
+        if(index < 31):
+            print(index, ')', course.course_name, ":", course.avg_gpa)
+            output = f'{index}) {course.course_name}, avg_gpa: {course.avg_gpa}\n'
+            with open('data.txt', 'a') as the_file:
+                the_file.write(output)
+        index += 1
+    output = '\n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
+
 
 def get_best_of_both(gen_ed):
-
+    output = f'{gen_ed} best of both: \n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
     top_gpa = merge_sort(all_gens_dict[gen_ed], 'gpa')
 
     top_samp = merge_sort(all_gens_dict[gen_ed], 'samp')
@@ -135,10 +154,56 @@ def get_best_of_both(gen_ed):
         course.comb_rank = samp_idx + gpa_idx
 
     best_of_both = merge_sort(all_gens_dict[gen_ed], 'comb')
-    index = 0 
+    index = 1
     for val in best_of_both:
-        print(index,')',val.course_name, ":",val.gpa_rank, ":", val.samp_rank)
-        index +=1
+        if(index < 31):
+            print(index, ')', val.course_name, ":",
+                  val.gpa_rank, ":", val.samp_rank)
+            output = f'{index}) {val.course_name} (gpa):{val.gpa_rank} (samplSz):{val.samp_num}\n'
+            with open('data.txt', 'a') as the_file:
+                the_file.write(output)
+        index += 1
+    output = '\n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
+
+
+def arnav(gen_ed):
+    best_list = []
+    output = f'{gen_ed} best with Arnav alg: \n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
+    for course in all_gens_dict[gen_ed]:
+        best_list.append(Arnav(course.course_name, float(
+            course.avg_gpa * math.log2(course.samp_num))))
+    best_of_both = merge_sort(best_list, 'norm')
+    index = 1
+    for elt in best_of_both:
+        if(index < 31):
+            print(index, ')', elt.course_name, ":", elt.val)
+            output = f'{index}) {elt.course_name} val:{elt.val}\n'
+            with open('data.txt', 'a') as the_file:
+                the_file.write(output)
+        index += 1
+    output = '\n'
+    with open('data.txt', 'a') as the_file:
+        the_file.write(output)
+
+
+def merge_norm(left_half, right_half):
+    res = []
+    while len(left_half) != 0 and len(right_half) != 0:
+        if left_half[0].val > right_half[0].val:
+            res.append(left_half[0])
+            left_half.remove(left_half[0])
+        else:
+            res.append(right_half[0])
+            right_half.remove(right_half[0])
+    if len(left_half) == 0:
+        res = res + right_half
+    else:
+        res = res + left_half
+    return res
 
 
 def merge_sort(unsorted_list, type_in):
@@ -157,6 +222,9 @@ def merge_sort(unsorted_list, type_in):
         return list(merge_with_samp(left_list, right_list))
     elif (type_in == 'comb'):
         return list(merge_with_comb(left_list, right_list))
+    elif (type_in == 'norm'):
+        return list(merge_norm(left_list, right_list))
+
 
 def merge_with_gpa(left_half, right_half):
     res = []
@@ -173,6 +241,7 @@ def merge_with_gpa(left_half, right_half):
         res = res + left_half
     return res
 
+
 def merge_with_samp(left_half, right_half):
     res = []
     while len(left_half) != 0 and len(right_half) != 0:
@@ -187,6 +256,7 @@ def merge_with_samp(left_half, right_half):
     else:
         res = res + left_half
     return res
+
 
 def merge_with_comb(left_half, right_half):
     res = []
@@ -208,14 +278,14 @@ def run(gen):
 
     options = se.webdriver.ChromeOptions()
     # chrome is set to headless
-    options.add_argument('headless') 
+    options.add_argument('headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--no-default-browser-check')
     options.add_argument('--disable-gpu')
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-default-apps')
     driver = se.webdriver.Chrome(chrome_options=options)
-    
+
     add_gened(gen)
     get_courses(gen, driver)
 
@@ -225,19 +295,26 @@ def run(gen):
     remove_empty(gen)
 
     print("________________________")
-    print(gen,": best GPA")
+    print(gen, ": best GPA")
     print("")
     get_best_gpa(gen)
     print("")
-    print(gen,": best Over All")
+    print(gen, ": best Over All (GPA-rank : SampleSize-rank)")
     print("")
     get_best_of_both(gen)
+    print("")
+    print(gen, ": Arnav Alg (GPA-rank * log(SampleSize-rank))")
+    print("")
+    arnav(gen)
+    print("")
     print("_________________________")
-    # driver.quit()
+    driver.quit()
 
-gens_list = {"DSHS","DSHU","DSNS","DSNL","DSSP"}
+
+gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
 thread_list = []
 if __name__ == '__main__':
+    open('data.txt', 'w').close()
     processes = []
 
     for gen in gens_list:
@@ -247,4 +324,3 @@ if __name__ == '__main__':
 
     for thread in thread_list:
         thread.start()
-
