@@ -16,8 +16,11 @@ from selenium.common.exceptions import TimeoutException
 
 from threading import Thread
 #import time
-
-
+import threading
+from queue import Queue
+import time
+from time import sleep
+import queue
 # _________________________________________________
 class Course:
     def __init__(self, course_name):
@@ -273,54 +276,61 @@ def merge_with_comb(left_half, right_half):
         res = res + left_half
     return res
 
-
-def run(gen):
-
-    options = se.webdriver.ChromeOptions()
-    # chrome is set to headless
-    options.add_argument('headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--no-default-browser-check')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-extensions')
-    options.add_argument('--disable-default-apps')
-    driver = se.webdriver.Chrome(chrome_options=options)
-
-    add_gened(gen)
-    get_courses(gen, driver)
-
-    for course in all_gens_dict[gen]:
-        add_gpa_field(gen, course.course_name, driver)
-
-    remove_empty(gen)
-
-    print("________________________")
-    print(gen, ": best GPA")
-    print("")
-    get_best_gpa(gen)
-    print("")
-    print(gen, ": best Over All (GPA-rank : SampleSize-rank)")
-    print("")
-    get_best_of_both(gen)
-    print("")
-    print(gen, ": Arnav Alg (GPA-rank * log(SampleSize-rank))")
-    print("")
-    arnav(gen)
-    print("")
-    print("_________________________")
-    driver.quit()
-
-
+jobs = Queue()
 gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
-thread_list = []
+def run(q):
+    while not q.empty():
+        gen = q.get()
+        try:
+            options = se.webdriver.ChromeOptions()
+            # chrome is set to headless
+            options.add_argument('headless')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--no-default-browser-check')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--disable-extensions')
+            options.add_argument('--disable-default-apps')
+            driver = se.webdriver.Chrome(chrome_options=options)
+
+            add_gened(gen)
+            get_courses(gen, driver)
+
+            for course in all_gens_dict[gen]:
+                add_gpa_field(gen, course.course_name, driver)
+
+            remove_empty(gen)
+
+            print("________________________")
+            print(gen, ": best GPA")
+            print("")
+            get_best_gpa(gen)
+            print("")
+            print(gen, ": best Over All (GPA-rank : SampleSize-rank)")
+            print("")
+            get_best_of_both(gen)
+            print("")
+            print(gen, ": Arnav Alg (GPA-rank * log(SampleSize-rank))")
+            print("")
+            arnav(gen)
+            print("")
+            print("_________________________")
+        finally:
+            driver.quit()
+            q.task_done()
+
+
+jobs = Queue()
+gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
 if __name__ == '__main__':
+    start_time = time.time()
     open('data.txt', 'w').close()
-    processes = []
-
     for gen in gens_list:
-        p = Process(target=run, args=(gen,))
-        thread_list.append(p)
-        processes.append(p)
+        jobs.put(gen)
 
-    for thread in thread_list:
-        thread.start()
+    for i in range(3):
+        worker = threading.Thread(target=run, args=(jobs,))
+        worker.start()
+
+    jobs.join()
+    print("--- Completed in %s seconds ---" % round(time.time() - start_time, 2))
+
