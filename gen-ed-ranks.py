@@ -21,11 +21,13 @@ from queue import Queue
 import time
 from time import sleep
 import queue
+import pickle
 # _________________________________________________
 class Course:
     def __init__(self, course_name):
         self.course_name = course_name
         self.prof_list = []
+        self.gen_eds = []
         self.avg_gpa = 0
         self.samp_num = 0
         self.gpa_rank = 0
@@ -51,81 +53,21 @@ class Arnav:
 
 
 # global vars
-all_gens_dict = dict()
+course_dict = dict()
 
-
-def get_courses(gen_ed, driver):
-    global all_gens_dict
-    gen_url = "https://app.testudo.umd.edu/soc/gen-ed/201908/" + gen_ed
-    print(gen_url)
-    driver.get(gen_url)
-
-    all_dept_list = driver.find_element(
-        By.XPATH, '//*[@id="courses-page"]')
-    dept_row = all_dept_list.find_elements(
-        By.CLASS_NAME, "course-prefix-container")
-    for dept in dept_row:
-        course_list = dept.find_elements(By.CLASS_NAME, "course")
-        for course in course_list:
-            course_name = course.get_attribute("id")
-            # print(course_name)
-            # adds each course to the set within the dict[gen_ed]
-            all_gens_dict[gen_ed].append((Course(course_name)))
-
-
-def add_gened(gen_ed):
-    global all_gens_dict
-    all_gens_dict[gen_ed] = []
-
-
-def add_gpa_field(gen_ed, course_in, driver):
-    global all_gens_dict
-    pterp_url = 'https://planetterp.com/course/'+course_in
-    try:
-        driver.get(pterp_url)
-    except TimeoutException:
-        return -1
-    try:
-        gpa_text = driver.find_element(
-            By.XPATH, '//*[@id="course-grades"]/p[1]').text
-    except NoSuchElementException:
-        return -1
-    start_gpa_i = gpa_text.find(':')
-    end_gpa_i = gpa_text.find(' ', start_gpa_i+2)
-    if(start_gpa_i == -1):
-        return -1
-    gpa = float(gpa_text[start_gpa_i+2:end_gpa_i])
-    index_of_course = find_course(gen_ed, course_in)
-    # adds the gpa to the course obj
-    all_gens_dict[gen_ed][index_of_course].avg_gpa = gpa
-
-    samp_num_st = gpa_text.find('between')+8
-    samp_num_end = gpa_text.find(' ', samp_num_st)
-    samp_num = int(gpa_text[samp_num_st:samp_num_end].replace(',', ''))
-
-    # adds the sample number to the course obj
-    # print(gen_ed,":",index_of_course)
-    all_gens_dict[gen_ed][index_of_course].samp_num = samp_num
-
-
-def find_course(gen_ed, course_in):
-    try:
-        return all_gens_dict[gen_ed].index(Course(course_in))
-    except:
-        return -1
-
-
-def remove_empty(gen_ed):
-    for course in all_gens_dict[gen_ed][:]:
-        if(course.avg_gpa == 0):
-            all_gens_dict[gen_ed].remove(course)
-
+def make_temp(gen_ed):
+    result = []
+    for key, value in course_dict.items():
+        if(gen_ed in value.gen_eds ):
+            result.append(value)
+    return result
 
 def get_best_gpa(gen_ed):
+    unordered_list = make_temp(gen_ed)
     output = f'{gen_ed} Best of GPA:\n'
     with open('data.txt', 'a') as the_file:
         the_file.write(output)
-    top_gpa = merge_sort(all_gens_dict[gen_ed], 'gpa')
+    top_gpa = merge_sort(unordered_list, 'gpa')
     index = 1
     for course in top_gpa:
         if(index < 31):
@@ -140,23 +82,24 @@ def get_best_gpa(gen_ed):
 
 
 def get_best_of_both(gen_ed):
+    unordered_list = make_temp(gen_ed)
     output = f'{gen_ed} best of both: \n'
     with open('data.txt', 'a') as the_file:
         the_file.write(output)
-    top_gpa = merge_sort(all_gens_dict[gen_ed], 'gpa')
+    top_gpa = merge_sort(unordered_list, 'gpa')
 
-    top_samp = merge_sort(all_gens_dict[gen_ed], 'samp')
+    top_samp = merge_sort(unordered_list, 'samp')
     # for idx, val in enumerate(top_gpa):
     #     combined_rec[idx] = top_gpa.index()
 
-    for course in all_gens_dict[gen_ed]:
+    for course in unordered_list:
         gpa_idx = top_gpa.index(course)
         samp_idx = top_samp.index(course)
         course.gpa_rank = gpa_idx
         course.samp_rank = samp_idx
         course.comb_rank = samp_idx + gpa_idx
 
-    best_of_both = merge_sort(all_gens_dict[gen_ed], 'comb')
+    best_of_both = merge_sort(unordered_list, 'comb')
     index = 1
     for val in best_of_both:
         if(index < 31):
@@ -172,11 +115,12 @@ def get_best_of_both(gen_ed):
 
 
 def arnav(gen_ed):
+    unordered_list = make_temp(gen_ed)
     best_list = []
     output = f'{gen_ed} best with Arnav alg: \n'
     with open('data.txt', 'a') as the_file:
         the_file.write(output)
-    for course in all_gens_dict[gen_ed]:
+    for course in unordered_list:
         best_list.append(Arnav(course.course_name, float(
             course.avg_gpa * math.log2(course.samp_num))))
     best_of_both = merge_sort(best_list, 'norm')
@@ -276,61 +220,31 @@ def merge_with_comb(left_half, right_half):
         res = res + left_half
     return res
 
-jobs = Queue()
-gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
-def run(q):
-    while not q.empty():
-        gen = q.get()
-        try:
-            options = se.webdriver.ChromeOptions()
-            # chrome is set to headless
-            options.add_argument('headless')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--no-default-browser-check')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--disable-extensions')
-            options.add_argument('--disable-default-apps')
-            driver = se.webdriver.Chrome(chrome_options=options)
 
-            add_gened(gen)
-            get_courses(gen, driver)
-
-            for course in all_gens_dict[gen]:
-                add_gpa_field(gen, course.course_name, driver)
-
-            remove_empty(gen)
-
-            print("________________________")
-            print(gen, ": best GPA")
-            print("")
-            get_best_gpa(gen)
-            print("")
-            print(gen, ": best Over All (GPA-rank : SampleSize-rank)")
-            print("")
-            get_best_of_both(gen)
-            print("")
-            print(gen, ": Arnav Alg (GPA-rank * log(SampleSize-rank))")
-            print("")
-            arnav(gen)
-            print("")
-            print("_________________________")
-        finally:
-            driver.quit()
-            q.task_done()
-
-
-jobs = Queue()
 gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
 if __name__ == '__main__':
-    start_time = time.time()
-    open('data.txt', 'w').close()
+
+    with open('course_data.pkl', 'rb') as input:
+        while(True):
+            try:
+                curr_course = pickle.load(input)
+            except:
+                break
+            course_dict[curr_course.course_name] = curr_course
+
+    for key, value in course_dict.items():
+        # print(course.course_name)
+        print(value.course_name)
+        print(value.avg_gpa)
+        for gen in value.gen_eds:
+           print(gen)
+
     for gen in gens_list:
-        jobs.put(gen)
-
-    for i in range(3):
-        worker = threading.Thread(target=run, args=(jobs,))
-        worker.start()
-
-    jobs.join()
-    print("--- Completed in %s seconds ---" % round(time.time() - start_time, 2))
-
+        get_best_of_both(gen)
+        print("_____________________________")
+    # for key, value in course_dict.items():
+    #     if (key == "AOSC200"):
+    #         print("asdfasdfasdf")
+    #         print(value.course_name)
+    #         for gen in value.gen_eds:
+    #             print(gen)
