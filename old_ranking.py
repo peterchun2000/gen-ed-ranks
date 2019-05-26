@@ -23,6 +23,30 @@ from time import sleep
 import queue
 import pickle
 # _________________________________________________
+class Proffessor:
+    def __init__(self, name, avg_gpa, samp_size):
+        self.name = name
+        self.avg_gpa = 0
+        self.samp_size = 0
+
+    def __eq__(self, other):
+        if isinstance(other, Proffessor):
+            return self.name.lower() == other.name.lower() 
+        return False
+        
+class Course_Rank:
+    def __init__(self, course_name):
+        self.course_name = course_name
+        self.gpa_rank = 0
+        self.samp_rank = 0
+        self.comb_rank = 0
+        self.prof_rank = 0
+
+    def __eq__(self, other):
+        if isinstance(other, Course):
+            return self.course_name == other.course_name
+        return False
+
 class Course:
     def __init__(self, course_name):
         self.course_name = course_name
@@ -33,6 +57,12 @@ class Course:
         self.gpa_rank = 0
         self.samp_rank = 0
         self.comb_rank = 0
+
+    def get_course_name(self):
+        return self.course_name
+
+    def add_section(self, section):
+        self.prof_list.append(section)
 
     def __eq__(self, other):
         if isinstance(other, Course):
@@ -49,12 +79,15 @@ class Arnav:
 # global vars
 course_dict = dict()
 
+
+
 def make_temp(gen_ed):
     result = []
     for key, value in course_dict.items():
-        if(gen_ed in value.gen_eds ):
+        if(gen_ed in value.gen_eds):
             result.append(value)
     return result
+
 
 def get_best_gpa(gen_ed):
     unordered_list = make_temp(gen_ed)
@@ -74,7 +107,7 @@ def get_best_gpa(gen_ed):
     with open('data.txt', 'a') as the_file:
         the_file.write(output)
 
-
+course_rank_list = dict()
 def get_best_of_both(gen_ed):
     unordered_list = make_temp(gen_ed)
     output = f'{gen_ed} best of both: \n'
@@ -89,9 +122,13 @@ def get_best_of_both(gen_ed):
     for course in unordered_list:
         gpa_idx = top_gpa.index(course)
         samp_idx = top_samp.index(course)
-        course.gpa_rank = gpa_idx
-        course.samp_rank = samp_idx
-        course.comb_rank = samp_idx + gpa_idx
+        course_rank_list[course.course_name] = Course_Rank(course.course_name)
+        course_rank_list[course.course_name].gpa_rank = gpa_idx
+        course_rank_list[course.course_name].samp_rank = samp_idx
+        course_rank_list[course.course_name].comb_rank =  samp_idx + gpa_idx
+        # course.gpa_rank = gpa_idx
+        # course.samp_rank = samp_idx
+        # course.comb_rank = samp_idx + gpa_idx
 
     best_of_both = merge_sort(unordered_list, 'comb')
     index = 1
@@ -215,7 +252,7 @@ def merge_with_comb(left_half, right_half):
     return res
 
 
-gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
+gens_list = {"DSNL"}
 if __name__ == '__main__':
 
     with open('course_data.pkl', 'rb') as input:
@@ -228,10 +265,13 @@ if __name__ == '__main__':
 
     for key, value in course_dict.items():
         # print(course.course_name)
-        print(value.course_name)
-        print(value.avg_gpa)
-        for gen in value.gen_eds:
-           print(gen)
+        # print(value.course_name)
+        # print(value.avg_gpa)
+        for key2, prof in value.prof_list.items():
+            print(prof.name)
+            print(prof.avg_gpa)
+            print(prof.samp_size)
+            print("")
 
     for gen in gens_list:
         get_best_of_both(gen)

@@ -22,11 +22,87 @@ import time
 from time import sleep
 import queue
 import pickle
+
 # _________________________________________________
+
+
+class Proffessor:
+    def __init__(self, name, avg_gpa, samp_size):
+        self.name = name
+        self.avg_gpa = 0
+        self.samp_size = 0
+
+    def __eq__(self, other):
+        if isinstance(other, Proffessor):
+            return self.name.lower() == other.name.lower()
+        return False
+
+
+def prof_data(course_in, gen_ed, prof_name, driver):
+    try:
+        pterp_url = 'https://planetterp.com/'
+        driver.get(pterp_url)
+
+        search = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="main-search"]')))
+        search.send_keys(prof_name)
+
+        enter = WebDriverWait(driver, 2).until(
+            EC.presence_of_element_located((By.XPATH, '/html/body/form/button')))
+        enter.click()
+        try:
+            view = WebDriverWait(driver, 3).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="grades-button"]')))
+            view.click()
+        except TimeoutException:
+            return -1
+
+        try:
+            # clicks on drop down menu
+
+            course_xpath = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="grades-by-course"]')))
+
+            course_xpath.click()
+
+            for course in course_xpath.find_elements_by_tag_name('option'):
+                # equals to same course
+                if course.get_attribute("value") == course_in:
+                    course.click()
+
+        except NoSuchElementException:
+            return -1
+
+        try:
+            gpa_text = driver.find_element(
+                By.XPATH, '//*[@id="grade-statistics"]').text
+        except NoSuchElementException:
+            return -1
+        start_gpa_i = gpa_text.find(':')
+        end_gpa_i = gpa_text.find(' ', start_gpa_i+2)
+        if(start_gpa_i == -1):
+            return -1
+        gpa = float(gpa_text[start_gpa_i+2:end_gpa_i])
+
+        index_of_course = find_course(gen_ed, course_in)
+        # adds the gpa to the course obj
+        samp_num_st = gpa_text.find('between')+8
+        samp_num_end = gpa_text.find(' ', samp_num_st)
+        samp_num = int(gpa_text[samp_num_st:samp_num_end].replace(',', ''))
+
+        # adds the sample number to the course obj
+
+        all_gens_dict[gen_ed][index_of_course].prof_list[prof_name].avg_gpa = gpa
+        all_gens_dict[gen_ed][index_of_course].prof_list[prof_name].samp_size = samp_num
+    except:
+        print("failed")
+        return -1
+
+
 class Course:
     def __init__(self, course_name):
         self.course_name = course_name
-        self.prof_list = []
+        self.prof_list = dict()
         self.gen_eds = []
         self.avg_gpa = 0
         self.samp_num = 0
@@ -37,12 +113,9 @@ class Course:
     def get_course_name(self):
         return self.course_name
 
-    def add_section(self, section):
-        self.prof_list.append(section)
-
     def __eq__(self, other):
         if isinstance(other, Course):
-            return self.course_name == other.course_name
+            return self.course_name.lower() == other.course_name.lower()
         return False
 
 
@@ -64,9 +137,32 @@ def get_courses(gen_ed, driver):
         course_list = dept.find_elements(By.CLASS_NAME, "course")
         for course in course_list:
             course_name = course.get_attribute("id")
-            # print(course_name)
+
             # adds each course to the set within the dict[gen_ed]
             all_gens_dict[gen_ed].append((Course(course_name)))
+
+            # start of testing
+            try:
+                section_set = course.find_element_by_class_name(
+                    "sections-fieldset")
+                view = WebDriverWait(section_set, 2).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, 'toggle-sections-link-text')))
+                # clicks on expand sections
+                view.click()
+            except:
+                continue
+
+            section_grid = WebDriverWait(course, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, 'sections-container')))
+            section_list = section_grid.find_elements(
+                By.CLASS_NAME, "delivery-f2f")
+            index_of_course = find_course(gen_ed, course_name)
+            for section in section_list:
+                s1 = section.find_element_by_class_name("section-instructor")
+                # prof_name = section.find_elements(By.XPATH, "//div[@class='section-instructor']")
+                if s1.text != "Instructor: TBA":
+                    all_gens_dict[gen_ed][index_of_course].prof_list[s1.text] = (
+                        Proffessor(s1.text, 0, 0))
 
 
 def add_gened(gen_ed):
@@ -80,6 +176,7 @@ def add_gpa_field(gen_ed, course_in, driver):
     try:
         driver.get(pterp_url)
     except TimeoutException:
+        print("failed")
         return -1
     try:
         gpa_text = driver.find_element(
@@ -100,7 +197,6 @@ def add_gpa_field(gen_ed, course_in, driver):
     samp_num = int(gpa_text[samp_num_st:samp_num_end].replace(',', ''))
 
     # adds the sample number to the course obj
-    # print(gen_ed,":",index_of_course)
     all_gens_dict[gen_ed][index_of_course].samp_num = samp_num
 
 
@@ -117,8 +213,6 @@ def remove_empty(gen_ed):
             all_gens_dict[gen_ed].remove(course)
 
 
-jobs = Queue()
-gens_list = {"DSHS", "DSHU", "DSNS", "DSNL", "DSSP", "DVCC", "DVUP", "SCIS"}
 def run(q):
     while not q.empty():
         gen = q.get()
@@ -135,6 +229,10 @@ def run(q):
 
             add_gened(gen)
             get_courses(gen, driver)
+
+            for course in all_gens_dict[gen]:
+                for key, val in course.prof_list.items():
+                    prof_data(course.course_name, gen, key, driver)
 
             for course in all_gens_dict[gen]:
                 add_gpa_field(gen, course.course_name, driver)
@@ -156,23 +254,16 @@ if __name__ == '__main__':
     for gen in gens_list:
         jobs.put(gen)
 
-    for i in range(5):
+    for i in range(8):
         worker = threading.Thread(target=run, args=(jobs,))
         worker.start()
 
     jobs.join()
 
-    print("--- Completed in %s seconds ---" % round(time.time() - start_time, 2))
+    print("--- Completed in %s seconds ---" %
+          round(time.time() - start_time, 2))
 
-    # This adds all the objects into a new dict for easier access
-    # with open('course_data.pkl', 'wb') as output:
-    #     # print(all_gens_dict["DVUP"][0].course_name)
-    #     for key, value in all_gens_dict.items():
-    #         for course in value:
-    #             # print(course.course_name)
-    #             pickle.dump(course, output, pickle.HIGHEST_PROTOCOL)
-
-    # makes a new dict of course_name as keys and course obj as value
+    # adds the course into the dict
     for key, value in all_gens_dict.items():
         for course in value:
             course_dict[course.course_name] = course
@@ -181,11 +272,8 @@ if __name__ == '__main__':
     for key, courses in all_gens_dict.items():
         for course in courses:
             course_dict[course.course_name].gen_eds.append(key)
-            
+
     # uploads it to the db
     with open('course_data.pkl', 'wb') as output:
-        # print(all_gens_dict["DVUP"][0].course_name)
         for key, value in course_dict.items():
-            # print(course.course_name)
             pickle.dump(value, output, pickle.HIGHEST_PROTOCOL)
-
