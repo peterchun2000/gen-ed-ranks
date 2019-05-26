@@ -149,20 +149,20 @@ def get_courses(gen_ed, driver):
                     EC.presence_of_element_located((By.CLASS_NAME, 'toggle-sections-link-text')))
                 # clicks on expand sections
                 view.click()
+
+                section_grid = WebDriverWait(course, 10).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, 'sections-container')))
+                section_list = section_grid.find_elements(
+                    By.CLASS_NAME, "delivery-f2f")
+                index_of_course = find_course(gen_ed, course_name)
+                for section in section_list:
+                    s1 = section.find_element_by_class_name("section-instructor")
+                    # prof_name = section.find_elements(By.XPATH, "//div[@class='section-instructor']")
+                    if s1.text != "Instructor: TBA":
+                        all_gens_dict[gen_ed][index_of_course].prof_list[s1.text] = (
+                            Proffessor(s1.text, 0, 0))
             except:
                 continue
-
-            section_grid = WebDriverWait(course, 10).until(
-                EC.presence_of_element_located((By.CLASS_NAME, 'sections-container')))
-            section_list = section_grid.find_elements(
-                By.CLASS_NAME, "delivery-f2f")
-            index_of_course = find_course(gen_ed, course_name)
-            for section in section_list:
-                s1 = section.find_element_by_class_name("section-instructor")
-                # prof_name = section.find_elements(By.XPATH, "//div[@class='section-instructor']")
-                if s1.text != "Instructor: TBA":
-                    all_gens_dict[gen_ed][index_of_course].prof_list[s1.text] = (
-                        Proffessor(s1.text, 0, 0))
 
 
 def add_gened(gen_ed):
