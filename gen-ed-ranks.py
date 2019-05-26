@@ -34,12 +34,6 @@ class Course:
         self.samp_rank = 0
         self.comb_rank = 0
 
-    def get_course_name(self):
-        return self.course_name
-
-    def add_section(self, section):
-        self.prof_list.append(section)
-
     def __eq__(self, other):
         if isinstance(other, Course):
             return self.course_name == other.course_name
