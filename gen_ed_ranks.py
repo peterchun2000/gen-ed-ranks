@@ -123,7 +123,8 @@ def prof_rank(gen_ed):
     best_of_both = merge_sort(best_list, 'prof_val')
     index = 1
     for elt in best_of_both:
-        if(index < 31):
+        #controls how many courses are printed per gen ed
+        if(index < 200):
             print(index, ')', elt.course_name, ":", elt.high_prof_arnav_val , "with ", elt.high_prof_name)
             output = f'{index}) {elt.course_name} val:{elt.high_prof_arnav_val} with {elt.high_prof_name} \n'
             with open('data.txt', 'a') as the_file:
@@ -146,7 +147,8 @@ def arnav(gen_ed):
     best_of_both = merge_sort(best_list, 'norm')
     index = 1
     for elt in best_of_both:
-        if(index < 31):
+        #controls how many courses are printed per gen ed
+        if(index < 200):
             print(index, ')', elt.course_name, ":", elt.arnav_val)
             output = f'{index}) {elt.course_name} val:{elt.arnav_val}\n'
             with open('data.txt', 'a') as the_file:
