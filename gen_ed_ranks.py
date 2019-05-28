@@ -228,7 +228,11 @@ if __name__ == '__main__':
 
     for gen in gens_list:
         print(gen)
+        
+        # this will run a alg that takes into the account individual proffessor avg GPA's
         prof_rank(gen)
         print("_____________________________")
-        # arnav(gen)
+        
+        # this will run the arnav alg
+        arnav(gen)
 

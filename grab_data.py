@@ -254,7 +254,8 @@ if __name__ == '__main__':
     for gen in gens_list:
         jobs.put(gen)
 
-    for i in range(8):
+    # this changes the number of threads that will run at once (recommended number: 4 for normal computer)
+    for i in range(4):
         worker = threading.Thread(target=run, args=(jobs,))
         worker.start()
 
