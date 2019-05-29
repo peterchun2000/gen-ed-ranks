@@ -8,7 +8,7 @@ Python 3.7 and that's it
 
 ## Running
 ```bash
-python3 grab_data.py      Note: this will take a few mins to run
+python3 grab_data.py      Note: NOT NECESSARY this will take a few mins to run
 
 python3 gen_ed_ranks.py    Note: this will take a few nano-seconds
 ```
