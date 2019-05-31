@@ -64,11 +64,14 @@ def prof_data(course_in, gen_ed, prof_name, driver):
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="grades-by-course"]')))
 
             course_xpath.click()
-
+            found = False
             for course in course_xpath.find_elements_by_tag_name('option'):
                 # equals to same course
                 if course.get_attribute("value") == course_in:
                     course.click()
+                    found = True
+            if found == False:
+                return -1
 
         except NoSuchElementException:
             return -1
